@@ -1,8 +1,8 @@
 <template>
   <div id="app" @click="click">
     <div id="display">
-      <template v-if="winners.length"><span class="name" v-for="winner in winners">{{ winner.split('|')[0] }} <span class="desc" v-if="winner.split('|')[1]">({{ winner.split('|')[1] }})</span></span></template>
-      <h1 v-else class="welcome" ref="welcome" :contenteditable="editing" @dblclick="edit(true)" @keydown.enter="edit(false)">Who's feeling lucky?</h1>
+      <div id="winners" ref="winners" :style="{ visibility: winners.length && isFit ? '' : 'hidden' }"><span class="name" v-for="winner in winners">{{ winner.split('|')[0] }} <span class="desc" v-if="winner.split('|')[1]">({{ winner.split('|')[1] }})</span></span></div>
+      <h1 v-show="!winners.length && isFit" id="welcome" ref="welcome" :contenteditable="editing" @dblclick.stop="edit(true)" @keydown.enter="edit(false)" v-html="welcome" spellcheck="false"></h1>
     </div>
     <div id="control" :class="{started: isSetup}">
       <form id="setup" @submit.prevent="setup">
@@ -31,36 +31,31 @@
   text-align center
 
 #display
+  position relative
+  display flex
+  justify-content space-around
+  align-items center
+  flex-grow 1
+  overflow hidden
+
+#winners
+  position absolute
+  top 80px
+  right 40px
+  bottom 20px
+  left 40px
   display flex
   flex-wrap wrap
   justify-content space-around
   align-items center
   flex-grow 1
-  overflow hidden
-  padding 80px 40px 20px
-
-  .welcome
-    min-height 1em
-    border-bottom 2px solid transparent
-    padding 0 .3em
-    font-size 5em
-    font-weight 200
-    user-select none
-    cursor default
-    outline none
-
-    &[contenteditable="true"]
-      border-color $aux-color
-      cursor text
-
-      &:hover
-        border-color $normal-color
+  font-size 6em
+  overflow auto
 
   .name
     position relative
     min-width 10vw
     padding .3em 1em
-    font-size 6em
 
   .desc
     position absolute
@@ -69,6 +64,23 @@
     transform translateX(-50%)
     color $secondary-color
     font-size .55em
+
+#welcome
+  min-height 1em
+  border-bottom 2px solid transparent
+  padding 0 .3em
+  font-size 5em
+  font-weight 200
+  user-select none
+  cursor default
+  outline none
+
+  &[contenteditable="true"]
+    border-color $aux-color
+    cursor text
+
+    &:hover
+      border-color $normal-color
 
 #control
   position relative
@@ -114,7 +126,9 @@
 </style>
 
 <script>
-import { pad, shuffle } from './utils'
+import { pad, shuffle } from './lib/utils'
+import { save, load } from './lib/storage'
+import { focus, fitByFontSize } from './lib/dom'
 import File from './components/File'
 
 const INITIAL = {
@@ -124,7 +138,9 @@ const INITIAL = {
   round: null,
   rolling: false,
   isSetup: false,
-  editing: false
+  isFit: true,
+  editing: false,
+  welcome: load('welcome') || 'Who\'s feeling lucky?'
 }
 
 export default {
@@ -146,22 +162,18 @@ export default {
     }
   },
   methods: {
-    edit (isStart) {
-      this.editing = isStart
-    },
-    click ({target}) {
-      if (!this.$refs.welcome.contains(target)) {
-        this.editing = false
-      }
-    },
     setup () {
-      if (this.$refs.total.validationMessage) {
-        alert(this.$refs.total.validationMessage)
+      if (!this.check('total')) {
         return
       }
 
       this.candidates = Array(this.total).fill(true).map((item, i) => pad(i + 1, 3))
       this.isSetup = true
+    },
+    log (names) {
+      let rounds = load('current', [])
+      rounds.push(names)
+      save('current', rounds)
     },
     upload ({target}) {
       let file = target.files[0]
@@ -176,29 +188,30 @@ export default {
           .filter(line => line)
         this.total = this.candidates.length
         this.isSetup = true
-        this.$refs.round.focus()
+        this.focus('round')
       }
       reader.readAsText(file)
     },
     roll () {
-      if (this.$refs.round.validationMessage) {
-        alert(this.$refs.round.validationMessage)
+      if (!this.check('round')) {
         return
       }
 
       let count = this.round
       if (!this.rolling) {
+        this.winners = []
+        this.fit(true)
         this.rolling = setInterval(() => {
           this.shuffle(count)
+          this.fit()
         }, 1000 / 15)
-        this.$nextTick(() => {
-          this.$refs.begin.focus()
-        })
+        this.focus('begin')
       } else {
         this.candidates.splice(0, count)
         clearTimeout(this.rolling)
         this.rolling = false
         this.checkRemaining()
+        this.log(this.winners)
       }
     },
     shuffle (count) {
@@ -210,6 +223,8 @@ export default {
       clearTimeout(this.rolling)
       this.$refs.upload.clear()
       Object.assign(this, INITIAL)
+      save('previous', load('current'))
+      save('current', [])
     },
     checkRemaining () {
       let validity = ''
@@ -217,27 +232,73 @@ export default {
         validity = '剩余人数不足' + this.round + '人。'
       }
       this.$refs.round.setCustomValidity(validity)
+    },
+    edit (isStart) {
+      this.editing = isStart
+    },
+    click ({target}) {
+      if (!this.$refs.welcome.contains(target)) {
+        this.edit(false)
+      }
+    },
+    focus (ref, isCollapse) {
+      let item = this.$refs[ref]
+      this.$nextTick(() => {
+        if (item instanceof HTMLElement) {
+          focus(item, isCollapse)
+        } else if (typeof item.focus === 'function') {
+          item.focus()
+        }
+      })
+    },
+    check (ref) {
+      let message = this.$refs[ref].validationMessage
+      if (message) {
+        alert(message)
+        return false
+      }
+      return true
+    },
+    fit (isReset) {
+      let winners = this.$refs.winners
+      if (isReset) {
+        this.isFit = false
+        winners.style.fontSize = ''
+      } else {
+        this.$nextTick(() => {
+          fitByFontSize(winners)
+          this.isFit = true
+        })
+      }
     }
   },
   watch: {
     isSetup (val, oldVal) {
       if (val !== oldVal) {
-        this.$nextTick(() => {
-          if (val) {
-            this.$refs.round.focus()
-          } else {
-            this.$refs.total.focus()
-          }
-        })
+        this.focus(val ? 'round' : 'total')
+      }
+    },
+    editing (val, oldVal) {
+      if (val !== oldVal) {
+        if (val) {
+          this.focus('welcome', true)
+        } else {
+          save('welcome', this.$refs.welcome.innerHTML)
+        }
       }
     }
   },
   mounted () {
-    window.onbeforeunload = () => {
+    window.addEventListener('resize', () => {
+      if (this.isSetup) {
+        this.fit()
+      }
+    })
+    window.addEventListener('beforeunload', () => {
       if (this.isSetup) {
         return '目前抽奖尚未结束，是否要离开？'
       }
-    }
+    })
   }
 }
 </script>
