@@ -9,6 +9,10 @@
   background $theme-color
   color #fff
 
+::-moz-selection
+  background $theme-color
+  color #fff
+
 body
   margin 0
   font-size 14px
@@ -49,11 +53,14 @@ input[type="number"]
   text-align center
   border 2px solid $aux-color
 
-  &::-webkit-inner-spin-button
-    display none
-
   &:focus
     border-color $normal-color
+
+input[type="number"]
+  -moz-appearance textfield
+
+::-webkit-inner-spin-button
+  display none
 
 input[type="submit"],
 input :not([type]),

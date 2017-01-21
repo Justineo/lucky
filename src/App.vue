@@ -1,10 +1,10 @@
 <template>
-  <div id="app" @click="click">
+  <div id="app" @click="click" :class="{started: isSetup, fit: isFit}">
     <div id="display">
-      <div id="winners" ref="winners" :style="{ visibility: winners.length && isFit ? '' : 'hidden' }"><span class="name" v-for="winner in winners">{{ winner.split('|')[0] }} <span class="desc" v-if="winner.split('|')[1]">({{ winner.split('|')[1] }})</span></span></div>
+      <div id="winners" ref="winners"><span class="name" v-for="winner in winners">{{ winner.split('|')[0] }} <span class="desc" v-if="winner.split('|')[1]">({{ winner.split('|')[1] }})</span></span></div>
       <h1 v-show="!winners.length && isFit" id="welcome" ref="welcome" :contenteditable="editing" @dblclick.stop="edit(true)" @keydown.enter="edit(false)" v-html="welcome" spellcheck="false"></h1>
     </div>
-    <div id="control" :class="{started: isSetup}">
+    <div id="control">
       <form id="setup" @submit.prevent="setup">
         <label><file @change="upload" :disabled="isSetup" ref="upload">选择文件</file></label>
         <span class="separator">- or -</span>
@@ -33,6 +33,7 @@
 #display
   position relative
   display flex
+  flex-direction column
   justify-content space-around
   align-items center
   flex-grow 1
@@ -44,13 +45,20 @@
   right 40px
   bottom 20px
   left 40px
-  display flex
+  display none
+  visibility hidden
   flex-wrap wrap
   justify-content space-around
   align-items center
   flex-grow 1
   font-size 6em
   overflow auto
+
+  .started &
+    display flex
+
+  .fit &
+    visibility visible
 
   .name
     position relative
@@ -71,13 +79,14 @@
   padding 0 .3em
   font-size 5em
   font-weight 200
-  user-select none
   cursor default
+  user-select none
   outline none
 
   &[contenteditable="true"]
     border-color $aux-color
     cursor text
+    user-select auto
 
     &:hover
       border-color $normal-color
@@ -105,7 +114,7 @@
     .remaining
       margin-right 1em
 
-  &.started
+  .started &
     #setup
       opacity 0
       transform translate(-50%, -50%) scale(2)
