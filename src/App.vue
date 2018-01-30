@@ -1,7 +1,7 @@
 <template>
   <div id="app" @click="click" :class="{started: isSetup, fit: isFit}">
     <div id="display">
-      <div id="winners" ref="winners"><span class="name" v-for="winner in winners">{{ winner.split('|')[0] }} <span class="desc" v-if="winner.split('|')[1]">({{ winner.split('|')[1] }})</span></span></div>
+      <div id="winners" ref="winners"><name-label v-for="winner in winners" :name="winner"></name-label></span></div>
       <h1 v-show="!winners.length && isFit" id="welcome" ref="welcome" :contenteditable="editing" @dblclick.stop="edit(true)" @keydown.enter="edit(false)" v-html="welcome" spellcheck="false"></h1>
     </div>
     <div id="control">
@@ -11,9 +11,19 @@
         <label><input type="number" required min="1" max="999" v-model="total" number :disabled="isSetup" ref="total" placeholder="一共有几人？"></label> <button :disabled="isSetup">确定</button>
       </form>
       <form id="roll" @reset="reset" @submit.prevent="roll">
-        <label><input type="number" v-model="round" number required :disabled="!this.isSetup || this.rolling" required min="1" :max="remaining || 50" @input="checkRemaining" ref="round" placeholder="本轮抽几人？"></label> / <span class="remaining">{{remaining}}</span> <button :disabled="!isSetup" name="begin" ref="begin">{{rolling ? '停止' : '开始'}}</button> <button type="reset" :disabled="!isSetup">重置</button>
+        <label><input type="number" v-model="round" number required :disabled="!this.isSetup || this.rolling" required min="1" :max="remaining || 50" @input="checkRemaining" ref="round" placeholder="本轮抽几人？"></label> / <span class="remaining">{{remaining}}</span> <button :disabled="!isSetup" name="begin" ref="begin">{{rolling ? '停止' : '开始'}}</button> <button type="reset" :disabled="!isSetup">重置</button> <button type="button" @click="openLog">记录</button>
       </form>
     </div>
+    <div id="log" :class="{show: showLog}" @click="showLog = false">
+      <h2>抽取历史</h2>
+      <ol v-if="logs.length">
+        <li v-for="log in logs">
+          <name-label v-for="name in log" :name="name"></name-label>
+        </li>
+      </ol>
+      <h2 class="empty" v-if="!logs.length">还没有进行过抽奖</h2>
+    </div>
+    <a id="github" href="https://github.com/Justineo/lucky"><octicon name="mark-github" label="View on GitHub" title="View on GitHub"></octicon></a>
   </div>
 </template>
 
@@ -53,6 +63,8 @@
   flex-grow 1
   font-size 6em
   overflow auto
+  user-select none
+  cursor default
 
   .started &
     display flex
@@ -101,7 +113,6 @@
     position absolute
     top 50%
     left 50%
-    width 320px
     background-color #fff
     transform translate(-50%, -50%)
     transition opacity .3s, transform .3s
@@ -132,6 +143,80 @@
   color $aux-color
   user-select none
   cursor default
+
+#log
+  position fixed
+  top 0
+  right 0
+  bottom 0
+  left 0
+  display flex
+  flex-direction column
+  justify-content center
+  align-items center
+  padding 3em 5em
+  background rgba(0, 0, 0, .8)
+  opacity 0
+  color rgba(255, 255, 255, .8)
+  transform scale(3)
+  transition opacity .2s, transform .2s
+  pointer-events none
+
+  h2
+    margin-top -20vh
+
+  &.show
+    opacity 1
+    transform none
+    pointer-events auto
+
+  .empty
+    flex-grow 0
+    font-weight 200
+    font-size 3em
+
+  ol
+    float left
+    max-width 80vw
+    text-align left
+    font-size 1.5em
+    color rgba(255, 255, 255, .5)
+
+  .name
+    display inline-block
+    color #fff
+
+  .name:not(:first-child)::before
+    content " / "
+    color rgba(255, 255, 255, .7)
+
+  .desc
+    font-size .7em
+    opacity .7
+
+#github
+  position fixed
+  top -3em
+  right -3em
+  width 6em
+  height 6em
+  transform rotate(45deg) scale(.6)
+  background-color $normal-color
+  color #fff
+  line-height 10em
+  text-align center
+  transition transform .2s, background-color .2s
+
+  .octicon
+    transform rotate(-45deg) scale(1.2)
+    transition transform .2s
+
+  &:hover
+    background-color $primary-color
+    transform rotate(45deg)
+
+    .octicon
+      transform rotate(-45deg) scale(1.4)
 </style>
 
 <script>
@@ -139,6 +224,9 @@ import { pad, shuffle } from './lib/utils'
 import { save, load } from './lib/storage'
 import { focus, fitByFontSize } from './lib/dom'
 import File from './components/File'
+import NameLabel from './components/NameLabel'
+import Octicon from 'vue-octicon/components/Octicon'
+import 'vue-octicon/icons/mark-github'
 
 const INITIAL = {
   candidates: [],
@@ -149,13 +237,17 @@ const INITIAL = {
   isSetup: false,
   isFit: true,
   editing: false,
-  welcome: load('welcome') || 'Who\'s feeling lucky?'
+  welcome: load('welcome') || 'Who\'s feeling lucky?',
+  showLog: false,
+  logs: []
 }
 
 export default {
   name: 'lucky',
   components: {
-    file: File
+    File,
+    NameLabel,
+    Octicon
   },
   data () {
     return {...INITIAL}
@@ -232,8 +324,6 @@ export default {
       clearTimeout(this.rolling)
       this.$refs.upload.clear()
       Object.assign(this, INITIAL)
-      save('previous', load('current'))
-      save('current', [])
     },
     checkRemaining () {
       let validity = ''
@@ -279,11 +369,19 @@ export default {
           this.isFit = true
         })
       }
+    },
+    openLog () {
+      this.logs = load('current')
+      this.showLog = true
     }
   },
   watch: {
     isSetup (val, oldVal) {
       if (val !== oldVal) {
+        if (val) {
+          save('previous', load('current'))
+          save('current', [])
+        }
         this.focus(val ? 'round' : 'total')
       }
     },

@@ -59,9 +59,10 @@ module.exports = {
         test: /\.js$/,
         loader: 'babel',
         include: [
-          path.join(projectRoot, 'src')
+          path.join(projectRoot, 'src'),
+          path.join(projectRoot, 'node_modules/vue-octicon')
         ],
-        exclude: /node_modules/
+        exclude: /node_modules(?![\\/]vue-octicon[\\/])/
       },
       {
         test: /\.json$/,
