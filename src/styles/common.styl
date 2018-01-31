@@ -40,12 +40,16 @@ button
   font inherit
   box-shadow none !important
   border-radius 2px
+  transition opacity .3s, border-color .3s, color .3s, background-color .3s
 
   &::-moz-focus-inner
     border 0
 
   &:focus
     outline none
+
+  &:active
+    opacity .8
 
 input[type="text"],
 input[type="number"]

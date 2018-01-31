@@ -1,31 +1,226 @@
 <template>
   <div id="app" @click="click" :class="{started: isSetup, fit: isFit}">
     <div id="display">
-      <div id="winners" ref="winners"><name-label v-for="winner in winners" :name="winner"></name-label></span></div>
+      <div id="winners" ref="winners">
+        <name-label v-for="(winner, i) in winners" :name="winner.name" :desc="winner.desc" :key="i"/>
+      </div>
       <h1 v-show="!winners.length && isFit" id="welcome" ref="welcome" :contenteditable="editing" @dblclick.stop="edit(true)" @keydown.enter="edit(false)" v-html="welcome" spellcheck="false"></h1>
     </div>
     <div id="control">
       <form id="setup" @submit.prevent="setup">
         <label><file @change="upload" :disabled="isSetup" ref="upload">选择文件</file></label>
         <span class="separator">- or -</span>
-        <label><input type="number" required min="1" max="999" v-model="total" number :disabled="isSetup" ref="total" placeholder="一共有几人？"></label> <button :disabled="isSetup">确定</button>
+        <label><input type="number" required min="1" max="999" v-model.number="total" :disabled="isSetup" ref="total" placeholder="一共有几人？"></label> <button :disabled="isSetup">确定</button>
       </form>
       <form id="roll" @reset="reset" @submit.prevent="roll">
-        <label><input type="number" v-model="round" number required :disabled="!this.isSetup || this.rolling" required min="1" :max="remaining || 50" @input="checkRemaining" ref="round" placeholder="本轮抽几人？"></label> / <span class="remaining">{{remaining}}</span> <button :disabled="!isSetup" name="begin" ref="begin">{{rolling ? '停止' : '开始'}}</button> <button type="reset" :disabled="!isSetup">重置</button> <button type="button" @click="openLog">记录</button>
+        <label><input type="number" v-model.number="round" required :disabled="!this.isSetup || this.rolling" min="1" :max="remaining || 50" @input="checkRemaining" ref="round" placeholder="本轮抽几人？"></label> / <span class="remaining">{{remaining}}</span> <button :disabled="!isSetup" name="begin" ref="begin">{{rolling ? '停止' : '开始'}}</button> <button type="reset" :disabled="!isSetup">重置</button> <button type="button" @click="openLog">记录</button>
       </form>
     </div>
     <div id="log" :class="{show: showLog}" @click="showLog = false">
       <h2>抽取历史</h2>
       <ol v-if="logs.length">
-        <li v-for="log in logs">
-          <name-label v-for="name in log" :name="name"></name-label>
+        <li v-for="(log, i) in logs" :key="i">
+          <name-label v-for="(winner, j) in log" :name="winner.name" :desc="winner.desc" :key="j"/>
         </li>
       </ol>
       <h2 class="empty" v-if="!logs.length">还没有进行过抽奖</h2>
     </div>
+    <button id="setting"><octicon name="gear"/></button>
     <a id="github" href="https://github.com/Justineo/lucky"><octicon name="mark-github" label="View on GitHub" title="View on GitHub"></octicon></a>
   </div>
 </template>
+
+<script>
+import { pad, shuffle } from './lib/utils'
+import { save, load } from './lib/storage'
+import { focus, fitByFontSize } from './lib/dom'
+import extract from './extract'
+import File from './components/File'
+import NameLabel from './components/NameLabel'
+import Octicon from 'vue-octicon/components/Octicon'
+import 'vue-octicon/icons/mark-github'
+import 'vue-octicon/icons/gear'
+
+const INITIAL = {
+  candidates: [],
+  winners: [],
+  total: null,
+  round: null,
+  rolling: false,
+  isSetup: false,
+  isFit: true,
+  editing: false,
+  welcome: load('welcome') || 'Who\'s feeling lucky?',
+  showLog: false,
+  logs: [],
+  rounds: []
+}
+
+export default {
+  name: 'lucky',
+  components: {
+    File,
+    NameLabel,
+    Octicon
+  },
+  data () {
+    return {...INITIAL}
+  },
+  computed: {
+    remaining: {
+      get () {
+        if (!this.isSetup) {
+          return '∞'
+        }
+        return this.candidates.length
+      }
+    }
+  },
+  methods: {
+    setup () {
+      if (!this.check('total')) {
+        return
+      }
+
+      this.candidates = Array(this.total).fill(true).map((item, i) => ({name: pad(i + 1, 3)}))
+      this.isSetup = true
+    },
+    log (names) {
+      let rounds = load('current', [])
+      rounds.push(names)
+      save('current', rounds)
+    },
+    upload ({target}) {
+      let file = target.files[0]
+      if (!file) {
+        return
+      }
+      let reader = new FileReader()
+      reader.onload = ({target}) => {
+        let {candidates} = extract(target.result)
+        this.candidates = candidates
+        this.total = candidates.length
+        this.isSetup = true
+        this.focus('round')
+      }
+      reader.readAsText(file)
+    },
+    roll () {
+      if (!this.check('round')) {
+        return
+      }
+
+      let count = this.round
+      if (!this.rolling) {
+        this.winners = []
+        this.fit(true)
+        this.rolling = setInterval(() => {
+          this.shuffle(count)
+          this.fit()
+        }, 1000 / 15)
+        this.focus('begin')
+      } else {
+        this.candidates.splice(0, count)
+        clearTimeout(this.rolling)
+        this.rolling = false
+        this.checkRemaining()
+        this.log(this.winners)
+      }
+    },
+    shuffle (count) {
+      let shuffled = shuffle(this.candidates, count)
+      this.winners = shuffled.slice(0, count)
+      this.candidates = shuffled
+    },
+    reset () {
+      clearTimeout(this.rolling)
+      this.$refs.upload.clear()
+      Object.assign(this, INITIAL)
+    },
+    checkRemaining () {
+      let validity = ''
+      if (this.candidates.length < this.round) {
+        validity = '剩余人数不足' + this.round + '人。'
+      }
+      this.$refs.round.setCustomValidity(validity)
+    },
+    edit (isStart) {
+      this.editing = isStart
+    },
+    click ({target}) {
+      if (!this.$refs.welcome.contains(target)) {
+        this.edit(false)
+      }
+    },
+    focus (ref, isCollapse) {
+      let item = this.$refs[ref]
+      this.$nextTick(() => {
+        if (item instanceof HTMLElement) {
+          focus(item, isCollapse)
+        } else if (typeof item.focus === 'function') {
+          item.focus()
+        }
+      })
+    },
+    check (ref) {
+      let message = this.$refs[ref].validationMessage
+      if (message) {
+        alert(message)
+        return false
+      }
+      return true
+    },
+    fit (isReset) {
+      let winners = this.$refs.winners
+      if (isReset) {
+        this.isFit = false
+        winners.style.fontSize = ''
+      } else {
+        this.$nextTick(() => {
+          fitByFontSize(winners)
+          this.isFit = true
+        })
+      }
+    },
+    openLog () {
+      this.logs = load('current')
+      this.showLog = true
+    }
+  },
+  watch: {
+    isSetup (val, oldVal) {
+      if (val !== oldVal) {
+        if (val) {
+          save('previous', load('current'))
+          save('current', [])
+        }
+        this.focus(val ? 'round' : 'total')
+      }
+    },
+    editing (val, oldVal) {
+      if (val !== oldVal) {
+        if (val) {
+          this.focus('welcome', true)
+        } else {
+          save('welcome', this.$refs.welcome.innerHTML)
+        }
+      }
+    }
+  },
+  mounted () {
+    window.addEventListener('resize', () => {
+      if (this.isSetup) {
+        this.fit()
+      }
+    })
+    window.addEventListener('beforeunload', () => {
+      if (this.isSetup) {
+        return '目前抽奖尚未结束，是否要离开？'
+      }
+    })
+  }
+}
+</script>
 
 <style lang="stylus">
 @import "./styles/variables.styl";
@@ -217,195 +412,29 @@
 
     .octicon
       transform rotate(-45deg) scale(1.4)
+
+#setting
+  position fixed
+  bottom 20px
+  left 20px
+  width 24px
+  height 24px
+  padding 0
+  opacity .2
+  transition opacity .3s
+
+  .octicon
+    font-size 16px
+    vertical-align top
+    margin-top 4px
+    transition transform .3s
+
+  &:hover
+    opacity 1
+
+    .octicon
+      transform rotate(360deg)
+
+  &:active
+    opacity .8
 </style>
-
-<script>
-import { pad, shuffle } from './lib/utils'
-import { save, load } from './lib/storage'
-import { focus, fitByFontSize } from './lib/dom'
-import File from './components/File'
-import NameLabel from './components/NameLabel'
-import Octicon from 'vue-octicon/components/Octicon'
-import 'vue-octicon/icons/mark-github'
-
-const INITIAL = {
-  candidates: [],
-  winners: [],
-  total: null,
-  round: null,
-  rolling: false,
-  isSetup: false,
-  isFit: true,
-  editing: false,
-  welcome: load('welcome') || 'Who\'s feeling lucky?',
-  showLog: false,
-  logs: []
-}
-
-export default {
-  name: 'lucky',
-  components: {
-    File,
-    NameLabel,
-    Octicon
-  },
-  data () {
-    return {...INITIAL}
-  },
-  computed: {
-    remaining: {
-      get () {
-        if (!this.isSetup) {
-          return '∞'
-        }
-        return this.candidates.length
-      }
-    }
-  },
-  methods: {
-    setup () {
-      if (!this.check('total')) {
-        return
-      }
-
-      this.candidates = Array(this.total).fill(true).map((item, i) => pad(i + 1, 3))
-      this.isSetup = true
-    },
-    log (names) {
-      let rounds = load('current', [])
-      rounds.push(names)
-      save('current', rounds)
-    },
-    upload ({target}) {
-      let file = target.files[0]
-      if (!file) {
-        return
-      }
-      let reader = new FileReader()
-      reader.onload = ({target}) => {
-        this.candidates = target.result
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line)
-        this.total = this.candidates.length
-        this.isSetup = true
-        this.focus('round')
-      }
-      reader.readAsText(file)
-    },
-    roll () {
-      if (!this.check('round')) {
-        return
-      }
-
-      let count = this.round
-      if (!this.rolling) {
-        this.winners = []
-        this.fit(true)
-        this.rolling = setInterval(() => {
-          this.shuffle(count)
-          this.fit()
-        }, 1000 / 15)
-        this.focus('begin')
-      } else {
-        this.candidates.splice(0, count)
-        clearTimeout(this.rolling)
-        this.rolling = false
-        this.checkRemaining()
-        this.log(this.winners)
-      }
-    },
-    shuffle (count) {
-      let shuffled = shuffle(this.candidates, count)
-      this.winners = shuffled.slice(0, count)
-      this.candidates = shuffled
-    },
-    reset () {
-      clearTimeout(this.rolling)
-      this.$refs.upload.clear()
-      Object.assign(this, INITIAL)
-    },
-    checkRemaining () {
-      let validity = ''
-      if (this.candidates.length < this.round) {
-        validity = '剩余人数不足' + this.round + '人。'
-      }
-      this.$refs.round.setCustomValidity(validity)
-    },
-    edit (isStart) {
-      this.editing = isStart
-    },
-    click ({target}) {
-      if (!this.$refs.welcome.contains(target)) {
-        this.edit(false)
-      }
-    },
-    focus (ref, isCollapse) {
-      let item = this.$refs[ref]
-      this.$nextTick(() => {
-        if (item instanceof HTMLElement) {
-          focus(item, isCollapse)
-        } else if (typeof item.focus === 'function') {
-          item.focus()
-        }
-      })
-    },
-    check (ref) {
-      let message = this.$refs[ref].validationMessage
-      if (message) {
-        alert(message)
-        return false
-      }
-      return true
-    },
-    fit (isReset) {
-      let winners = this.$refs.winners
-      if (isReset) {
-        this.isFit = false
-        winners.style.fontSize = ''
-      } else {
-        this.$nextTick(() => {
-          fitByFontSize(winners)
-          this.isFit = true
-        })
-      }
-    },
-    openLog () {
-      this.logs = load('current')
-      this.showLog = true
-    }
-  },
-  watch: {
-    isSetup (val, oldVal) {
-      if (val !== oldVal) {
-        if (val) {
-          save('previous', load('current'))
-          save('current', [])
-        }
-        this.focus(val ? 'round' : 'total')
-      }
-    },
-    editing (val, oldVal) {
-      if (val !== oldVal) {
-        if (val) {
-          this.focus('welcome', true)
-        } else {
-          save('welcome', this.$refs.welcome.innerHTML)
-        }
-      }
-    }
-  },
-  mounted () {
-    window.addEventListener('resize', () => {
-      if (this.isSetup) {
-        this.fit()
-      }
-    })
-    window.addEventListener('beforeunload', () => {
-      if (this.isSetup) {
-        return '目前抽奖尚未结束，是否要离开？'
-      }
-    })
-  }
-}
-</script>

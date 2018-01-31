@@ -1,12 +1,16 @@
 <template>
-  <span class="name">{{ name.split('|')[0] }} <span class="desc" v-if="name.split('|')[1]">({{ name.split('|')[1] }})</span></span>
+  <span class="name">{{ name }} <span class="desc" v-if="desc">({{ desc }})</span></span>
 </template>
 
 <script>
 export default {
   name: 'name-label',
   props: {
-    name: String
+    name: {
+      type: String,
+      required: true
+    },
+    desc: String
   }
 }
 </script>
