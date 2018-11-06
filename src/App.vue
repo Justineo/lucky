@@ -1,32 +1,126 @@
 <template>
-  <div id="app" @click="click" :class="{started: isSetup, fit: isFit}">
+  <div
+    id="app"
+    @click="click"
+    :class="{
+      started: isSetup,
+      fit: isFit
+    }"
+  >
     <div id="display">
       <div id="winners" ref="winners">
-        <name-label v-for="(winner, i) in winners" :name="winner.name" :desc="winner.desc" :key="i"/>
+        <name-label
+          v-for="(winner, i) in winners"
+          :name="winner.name"
+          :desc="winner.desc"
+          :key="i"
+        />
       </div>
-      <h1 v-show="!winners.length && isFit" id="welcome" ref="welcome" :contenteditable="editing" @dblclick.stop="edit(true)" @keydown.enter="edit(false)" v-html="welcome" spellcheck="false"></h1>
+      <h1
+        v-show="!winners.length && isFit"
+        id="welcome"
+        ref="welcome"
+        :contenteditable="editing"
+        @dblclick.stop="edit(true)"
+        @keydown.enter="edit(false)"
+        v-html="welcome"
+        spellcheck="false">
+      </h1>
     </div>
     <div id="control">
       <form id="setup" @submit.prevent="setup">
-        <label><file @change="upload" :disabled="isSetup" ref="upload">选择文件</file></label>
+        <label>
+          <file
+            @change="upload"
+            :disabled="isSetup"
+            ref="upload"
+          >选择文件</file>
+        </label>
         <span class="separator">- or -</span>
-        <label><input type="number" required min="1" max="999" v-model.number="total" :disabled="isSetup" ref="total" placeholder="一共有几人？"></label> <button :disabled="isSetup">确定</button>
+        <label>
+          <input
+            type="number"
+            required
+            min="1"
+            max="999"
+            v-model.number="total"
+            :disabled="isSetup"
+            ref="total"
+            placeholder="一共有几人？"
+          >
+        </label>
+        <button :disabled="isSetup">确定</button>
       </form>
-      <form id="roll" @reset="reset" @submit.prevent="roll">
-        <label><input type="number" v-model.number="round" required :disabled="!this.isSetup || this.rolling" min="1" :max="remaining || 50" @input="checkRemaining" ref="round" placeholder="本轮抽几人？"></label> / <span class="remaining">{{remaining}}</span> <button :disabled="!isSetup" name="begin" ref="begin">{{rolling ? '停止' : '开始'}}</button> <button type="reset" :disabled="!isSetup">重置</button> <button type="button" @click="openLog">记录</button>
+      <form
+        id="roll"
+        @reset="reset"
+        @submit.prevent="roll"
+      >
+        <label>
+          <input
+            type="number"
+            v-model.number="round"
+            required
+            :disabled="!isSetup || rolling"
+            min="1"
+            :max="remaining || 50"
+            @input="checkRemaining"
+            ref="round"
+            placeholder="本轮抽几人？"
+          >
+        </label>
+        /
+        <span class="remaining">{{remaining}}</span>
+        <button
+          :disabled="!isSetup || coolingDown"
+          name="begin"
+          ref="begin"
+        >
+          {{rolling ? '停止' : '开始'}}
+          <span
+            v-if="coolingDown"
+            class="cooler"
+            :style="`animation-duration: ${cooldown}ms;`"
+          >
+          </span>
+        </button>
+        <button
+          type="reset"
+          :disabled="!isSetup || coolingDown"
+        >
+          重置
+          <span
+            v-if="coolingDown"
+            class="cooler"
+            :style="`animation-duration: ${cooldown}ms;`"
+          >
+          </span>
+        </button>
+        <button type="button" @click="openLog">记录</button>
       </form>
     </div>
-    <div id="log" :class="{show: showLog}" @click="showLog = false">
+    <div
+      id="log"
+      :class="{show: showLog}"
+      @click="showLog = false"
+    >
       <h2>抽取历史</h2>
       <ol v-if="logs.length">
         <li v-for="(log, i) in logs" :key="i">
-          <name-label v-for="(winner, j) in log" :name="winner.name" :desc="winner.desc" :key="j"/>
+          <name-label
+            v-for="(winner, j) in log"
+            :name="winner.name"
+            :desc="winner.desc"
+            :key="j"
+          />
         </li>
       </ol>
       <h2 class="empty" v-if="!logs.length">还没有进行过抽奖</h2>
     </div>
-    <button id="setting"><octicon name="gear"/></button>
-    <a id="github" href="https://github.com/Justineo/lucky"><octicon name="mark-github" label="View on GitHub" title="View on GitHub"></octicon></a>
+    <!-- <button id="setting"><octicon name="gear"/></button> -->
+    <a id="github" href="https://github.com/Justineo/lucky">
+      <octicon name="mark-github" label="View on GitHub" title="View on GitHub"/>
+    </a>
   </div>
 </template>
 
@@ -41,6 +135,8 @@ import Octicon from 'vue-octicon/components/Octicon'
 import 'vue-octicon/icons/mark-github'
 import 'vue-octicon/icons/gear'
 
+const EMOJIS = ['👻', '🤟', '🖖', '🙈', '🎰', '🤩', '😜', '😎', '🤑', '🤘']
+
 const INITIAL = {
   candidates: [],
   winners: [],
@@ -50,10 +146,12 @@ const INITIAL = {
   isSetup: false,
   isFit: true,
   editing: false,
-  welcome: load('welcome') || 'Who\'s feeling lucky?',
+  welcome: load('welcome') || EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
   showLog: false,
   logs: [],
-  rounds: []
+  rounds: [],
+  cooldown: 2000,
+  coolingDown: false
 }
 
 export default {
@@ -126,6 +224,11 @@ export default {
         this.checkRemaining()
         this.log(this.winners)
       }
+
+      this.coolingDown = true
+      setTimeout(() => {
+        this.coolingDown = false
+      }, this.cooldown)
     },
     shuffle (count) {
       let shuffled = shuffle(this.candidates, count)
@@ -202,7 +305,7 @@ export default {
         if (val) {
           this.focus('welcome', true)
         } else {
-          save('welcome', this.$refs.welcome.innerHTML)
+          save('welcome', this.$refs.welcome.textContent)
         }
       }
     }
@@ -320,6 +423,9 @@ export default {
     .remaining
       margin-right 1em
 
+    button
+      position relative
+
   .started &
     #setup
       opacity 0
@@ -338,6 +444,23 @@ export default {
   color $aux-color
   user-select none
   cursor default
+
+.cooler
+  position absolute
+  top -2px
+  right -2px
+  bottom -2px
+  left -2px
+  background-color alpha(#fff, .5)
+  transform-origin right center
+  animation progress linear
+
+@keyframes progress
+  0%
+    transform scaleX(1)
+
+  100%
+    transform scaleX(0)
 
 #log
   position fixed
