@@ -13,7 +13,7 @@
 </template>
 
 <style lang="stylus">
-@import "../styles/variables.styl";
+@import "../styles/variables.styl"
 
 .file
   display inline-block
@@ -30,10 +30,10 @@
 
   button
     float left
-    border 2px solid $normal-color
+    border 2px solid var(--fg-color)
 
     &:hover
-      border-color $primary-color
+      border-color var(--active-fg-color)
 
   input,
   button

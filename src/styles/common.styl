@@ -1,22 +1,30 @@
 @import "variables.styl"
 
+:root
+  --bg-color $bg-color
+  --fg-color $fg-color
+  --active-bg-color $active-bg-color
+  --active-fg-color $active-fg-color
+  --text-color $text-color
+  --line-height $line-height
+
 *,
 *::before,
 *::after
   box-sizing border-box
 
 ::selection
-  background $theme-color
+  background var(--active-fg-color)
   color #fff
 
 ::-moz-selection
-  background $theme-color
+  background var(--active-fg-color)
   color #fff
 
 body
   margin 0
   font-size 14px
-  line-height $line-height
+  line-height var(--line-height)
   font-weight 400
 
 h1,
@@ -28,13 +36,14 @@ h6
   font-weight 600
 
 input,
-button
+button,
+textarea
   box-sizing content-box
-  height $line-height * 1em
-  border 2px solid $normal-color
+  height calc(var(--line-height) * 1em)
+  border 2px solid var(--fg-color)
   padding 0 .5em
   background none
-  color $normal-color
+  color var(--fg-color)
   line-height inherit
   vertical-align middle
   font inherit
@@ -51,14 +60,19 @@ button
   &:active
     opacity .8
 
+textarea
+  height auto
+
 input[type="text"],
 input[type="number"]
   width 100px
   text-align center
-  border 2px solid $aux-color
 
   &:focus
-    border-color $normal-color
+    border-color var(--active-fg-color)
+
+  &::placeholder
+    color var(--aux-color)
 
 input[type="number"]
   -moz-appearance textfield
@@ -67,19 +81,18 @@ input[type="number"]
   display none
 
 input[type="submit"],
-input :not([type]),
 button
-  background $normal-color
-  color #fff
+  background var(--fg-color)
+  color var(--bg-color)
   user-select none
   cursor pointer
 
   &:hover
-    background $primary-color
-    border-color $primary-color
+    background var(--active-fg-color)
+    border-color var(--active-fg-color)
 
   &:focus
-    border-color $primary-color
+    border-color var(--active-fg-color)
 
 :disabled
   opacity .5

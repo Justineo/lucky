@@ -1,4 +1,7 @@
 export function focus (el, isCollapse) {
+  if (!el) {
+    return
+  }
   let range = document.createRange()
   let selection = window.getSelection()
   if (typeof el.select === 'function' && el.value !== undefined) { // form inputs
