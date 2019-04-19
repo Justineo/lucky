@@ -4,7 +4,8 @@
     @click="click"
     :class="{
       started: isSetup,
-      fit: isFit
+      fit: isFit,
+      number: isNumber
     }"
   >
     <div id="stage" ref="stage">
@@ -196,6 +197,7 @@ const INITIAL = {
   round: null,
   rolling: false,
   isSetup: false,
+  isNumber: false,
   isFit: true,
   editing: false,
   showLog: false,
@@ -232,6 +234,7 @@ export default {
         return
       }
 
+      this.isNumber = true
       this.candidates = Array(this.total).fill(true).map((item, i) => ({name: pad(i + 1, 3)}))
       this.isSetup = true
     },
@@ -464,6 +467,9 @@ export default {
     position relative
     min-width 10vw
     padding .3em 1em
+
+    .number &
+      font-family 'Fira Code', consolas, monospace
 
   .desc
     position absolute
