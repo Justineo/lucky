@@ -39,7 +39,7 @@
     "friendly-errors-webpack-plugin": "^1.1.2",
     "function-bind": "^1.0.2",
     "html-webpack-plugin": "^2.8.1",
-    "http-proxy-middleware": "^0.17.2",
+    "http-proxy-middleware": "^2.0.0",
     "json-loader": "^0.5.4",
     "opn": "^4.0.2",
     "ora": "^0.3.0",
