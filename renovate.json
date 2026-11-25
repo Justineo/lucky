@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "automerge": false,
+  "minimumReleaseAge": "3 days",
+  "rebaseWhen": "behind-base-branch",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies"
+    },
+    {
+      "matchPackageNames": ["vite-plus", "@voidzero-dev/vite-plus-core", "@vitejs/plugin-vue"],
+      "groupName": "Vite+ toolchain"
+    },
+    {
+      "matchPackageNames": ["@playwright/test", "playwright", "playwright-core"],
+      "groupName": "Playwright"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  }
+}

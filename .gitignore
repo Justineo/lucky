@@ -4,3 +4,6 @@ dist/
 npm-debug.log
 src/styles/themes
 .vscode
+
+playwright-report/
+test-results/

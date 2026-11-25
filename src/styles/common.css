@@ -1,0 +1,115 @@
+:root {
+  --bg-color: #fff;
+  --fg-color: #666;
+  --active-bg-color: #eee;
+  --active-fg-color: #333;
+  --text-color: #666;
+  --line-height: 2;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+::selection {
+  background: var(--active-fg-color);
+  color: #fff;
+}
+::-moz-selection {
+  background: var(--active-fg-color);
+  color: #fff;
+}
+body {
+  margin: 0;
+  font-size: 14px;
+  line-height: var(--line-height);
+  font-weight: 400;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+}
+input,
+button,
+textarea {
+  box-sizing: content-box;
+  height: calc(var(--line-height) * 1em);
+  border: 2px solid var(--fg-color);
+  padding: 0 0.5em;
+  background: none;
+  color: var(--fg-color);
+  line-height: inherit;
+  vertical-align: middle;
+  font: inherit;
+  box-shadow: none !important;
+  border-radius: 2px;
+  transition:
+    opacity 0.3s,
+    border-color 0.3s,
+    color 0.3s,
+    background-color 0.3s;
+}
+input::-moz-focus-inner,
+button::-moz-focus-inner,
+textarea::-moz-focus-inner {
+  border: 0;
+}
+input:focus,
+button:focus,
+textarea:focus {
+  outline: none;
+}
+input:active,
+button:active,
+textarea:active {
+  opacity: 0.8;
+}
+textarea {
+  height: auto;
+}
+input[type='text'],
+input[type='number'] {
+  width: 100px;
+  text-align: center;
+}
+input[type='text']:focus,
+input[type='number']:focus {
+  border-color: var(--active-fg-color);
+}
+input[type='text']::placeholder,
+input[type='number']::placeholder {
+  color: var(--aux-color);
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+::-webkit-inner-spin-button {
+  display: none;
+}
+input[type='submit'],
+button {
+  background: var(--fg-color);
+  color: var(--bg-color);
+  user-select: none;
+  cursor: pointer;
+}
+input[type='submit']:hover,
+button:hover {
+  background: var(--active-fg-color);
+  border-color: var(--active-fg-color);
+}
+input[type='submit']:focus,
+button:focus {
+  border-color: var(--active-fg-color);
+}
+:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+form {
+  user-select: none;
+}
