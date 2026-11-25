@@ -25,8 +25,8 @@ jobs:
       - uses: voidzero-dev/setup-vp@v1
         with:
           cache: true
-          run-install: |
-            args: --frozen-lockfile
+          run-install: false
+      - run: vp install --frozen-lockfile
       - run: pnpm audit --audit-level moderate
       - run: vp check
       - run: vp test run
